@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from xml.etree import ElementTree as ET
 from xml.sax.saxutils import escape
 import requests
-from flask import Flask, jsonify, render_template, abort
+from flask import Flask, jsonify, render_template, abort, request
 
 LONDON = ZoneInfo('Europe/London')
 UTC = timezone.utc
@@ -138,6 +138,11 @@ class Upstream:
 
 def create_app(fetchers=None):
     app = Flask(__name__)
+    @app.after_request
+    def home_assistant_card_resource(response):
+        if request.path == '/static/ha-auto-tile.js':
+            response.headers['Access-Control-Allow-Origin'] = 'http://192.168.192.99:8123'
+        return response
     upstream = Upstream()
     if fetchers is None:
         if os.getenv('DEVELOPMENT_FIXTURES') == '1':

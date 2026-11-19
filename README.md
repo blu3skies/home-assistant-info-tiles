@@ -27,7 +27,7 @@ The script pulls `main` with fast-forward only, refuses to overwrite local sourc
 
 For a different Synology volume/folder, use `sudo env DEPLOY_DIR=/volume2/docker/home-assistant-info-tiles sh /tmp/home-info-deploy.sh`. Keep using the same directory for updates. The account running the script must own or have permission to update its Git checkout. If Git reports unsafe repository ownership after switching accounts, run deployment with the original owning account rather than disabling Git ownership checks globally.
 
-After deployment, open `http://YOUR_SYNOLOGY_IP:5054/`. Change the four Home Assistant tile URLs from the Mac address/port to this NAS address/port. If you use the local custom auto-sizing card, update its JavaScript resource URL to `http://YOUR_SYNOLOGY_IP:5054/static/ha-auto-tile.js` and each card's `url`, then refresh Home Assistant. This custom-card source must be published to GitHub before using it from a GitHub checkout; the standard iframe cards work without it. HTTPS Home Assistant requires HTTPS tile/resource URLs through your reverse proxy.
+After deployment, open `http://YOUR_SYNOLOGY_IP:5054/`. Change the four Home Assistant tile URLs from the Mac address/port to this NAS address/port. If you use the local custom auto-sizing card, update its JavaScript resource URL to `http://YOUR_SYNOLOGY_IP:5054/static/ha-auto-tile.js` and each card's `url`, then refresh Home Assistant. The custom-card source is included in the repository; the standard iframe cards work without it. HTTPS Home Assistant requires HTTPS tile/resource URLs through your reverse proxy.
 
 Diagnostics and stopping (run from the NAS deployment directory):
 
@@ -89,7 +89,7 @@ url: http://YOUR_DOCKER_HOST:5054/tiles/trains
 aspect_ratio: 100%
 ```
 
-`aspect_ratio` sets height relative to card width: at 400px, 90% gives 360px. Adjust for font size, row count, disruption details and your dashboard layout; Home Assistant does not automatically resize the frame to its content. The tiles have content-sized layouts, two train columns on wide frames and one on narrow frames. Vertical scrolling inside a short frame is intentional; Tube details expand within its frame and remain keyboard accessible.
+`aspect_ratio` sets height relative to card width: at 400px, 90% gives 360px. Adjust for font size, row count, disruption details and your dashboard layout; Home Assistant does not automatically resize the frame to its content. The tiles have content-sized layouts, two train columns on wide frames and one on narrow frames. Vertical scrolling inside a short frame is intentional; Tube details open in a dialog within its frame and remain keyboard accessible.
 
 If Home Assistant uses HTTPS, the tile URLs must also use HTTPS with a certificate trusted by each viewing device. Use a LAN reverse proxy such as Synology's, forwarding to host port 5054. HTTP tiles inside HTTPS Home Assistant are blocked as mixed content. Ensure the proxy does not add `X-Frame-Options: DENY/SAMEORIGIN` or a CSP `frame-ancestors` rule that excludes your Home Assistant origin. The app itself permits framing; no sandbox disabling or public internet exposure is needed.
 
