@@ -2,7 +2,7 @@ services:
   tiles:
     build: .
     ports:
-      - "5050:5050"
+      - "${HOST_PORT:-5054}:5050"
     env_file: .env
     restart: unless-stopped
     init: true

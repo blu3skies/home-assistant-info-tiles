@@ -8,10 +8,36 @@ Four independent Flask pages for Home Assistant: `/tiles/buses`, `/tiles/tube`, 
 2. `cp .env.example .env`
 3. Edit `.env`: set **BUS_STOP_ID** to the verified Craignair Road stop towards Brixton and **NATIONAL_RAIL_TOKEN** to your OpenLDBWS token. Optionally set **TFL_SUBSCRIPTION_KEY**. Your supplied stop ID is configured locally. The published source only reads the bus ID from the environment; it does not establish its value. Do not use an unverified stop or copy a stop for the opposite direction.
 4. `docker compose up -d --build`
-5. Open `http://YOUR_DOCKER_HOST:5050/`, then check the four tiles. `docker compose ps` reports container health; `docker compose logs --tail=100` shows server logs.
+5. Open `http://YOUR_DOCKER_HOST:5054/`, then check the four tiles. `docker compose ps` reports container health; `docker compose logs --tail=100` shows server logs.
 6. Add the webpage cards below using a host name/address reachable from the device displaying Home Assistant. `localhost` would mean that device, not your Docker host.
 
 The image runs Gunicorn as a non-root user with debug disabled. Keep one worker: its threaded, per-source cache shares upstream results across all clients. Multiple workers/containers would have separate caches. No database or persistent volume is needed. Build requires internet for the base image and Python packages; operation needs outbound HTTPS to TfL, National Rail and Carbon Intensity. Browsers load all assets locally, including vendored Chart.js. No public exposure is required. Stop with `docker compose down`.
+
+## One-command Synology installation and updates
+
+Run the following **in an SSH terminal on the Synology**, using an administrator account. Install Container Manager and the Git Server package first (Git Server supplies the git command; no hosted Git service needs configuring).
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/blu3skies/home-assistant-info-tiles/main/deploy.sh -o /tmp/home-info-deploy.sh && sudo sh /tmp/home-info-deploy.sh
+```
+
+The first run clones the project into `/volume1/docker/home-assistant-info-tiles` and creates a private `.env` from the placeholder example, then stops. Copy your existing local `.env` into that folder securely using File Station/SFTP, or edit the placeholders on the NAS. Keep `DEVELOPMENT_FIXTURES=0`. Add `HOST_PORT=5054` (or another unused port) to select the NAS port. Never commit this file. Run the same command again to build and start the container. This is the same command for future updates; credentials are preserved.
+
+The script pulls `main` with fast-forward only, refuses to overwrite local source changes, builds before replacing the running container, uses the stable Compose project name `home-assistant-info-tiles`, and waits for Docker health status. It supports `docker compose` and older `docker-compose`. It never stops or removes the original Departures Board container. The default port is **5054**, to keep this application separate; check that it is free on your host first.
+
+For a different Synology volume/folder, use `sudo env DEPLOY_DIR=/volume2/docker/home-assistant-info-tiles sh /tmp/home-info-deploy.sh`. Keep using the same directory for updates. The account running the script must own or have permission to update its Git checkout. If Git reports unsafe repository ownership after switching accounts, run deployment with the original owning account rather than disabling Git ownership checks globally.
+
+After deployment, open `http://YOUR_SYNOLOGY_IP:5054/`. Change the four Home Assistant tile URLs from the Mac address/port to this NAS address/port. If you use the local custom auto-sizing card, update its JavaScript resource URL to `http://YOUR_SYNOLOGY_IP:5054/static/ha-auto-tile.js` and each card's `url`, then refresh Home Assistant. This custom-card source must be published to GitHub before using it from a GitHub checkout; the standard iframe cards work without it. HTTPS Home Assistant requires HTTPS tile/resource URLs through your reverse proxy.
+
+Diagnostics and stopping (run from the NAS deployment directory):
+
+```sh
+sudo docker compose -p home-assistant-info-tiles ps
+sudo docker compose -p home-assistant-info-tiles logs --tail=100 tiles
+sudo docker compose -p home-assistant-info-tiles down
+```
+
+A failed build keeps the previous container running. A failure after container replacement is reported but is not automatically rolled back. Health checks verify the web process, not upstream credentials: open all four tiles after the first deployment. Once deployed, the NAS runs independently of your Mac, with `restart: unless-stopped` for NAS/Docker restarts.
 
 ## Settings
 
@@ -19,6 +45,7 @@ All settings come from the server environment. Compose loads `.env`; Python itse
 
 | Variable | Default | Meaning |
 |---|---|---|
+| HOST_PORT | 5054 | Published Docker host port |
 | BUS_STOP_ID | unset | Required verified TfL stop ID |
 | TFL_SUBSCRIPTION_KEY | unset | Optional TfL subscription key |
 | NATIONAL_RAIL_TOKEN | unset | Required rail token |
@@ -40,31 +67,31 @@ Checked against [current official webpage-card documentation](https://www.home-a
 
 ```yaml
 type: iframe
-url: http://YOUR_DOCKER_HOST:5050/tiles/buses
+url: http://YOUR_DOCKER_HOST:5054/tiles/buses
 aspect_ratio: 90%
 ```
 
 ```yaml
 type: iframe
-url: http://YOUR_DOCKER_HOST:5050/tiles/tube
+url: http://YOUR_DOCKER_HOST:5054/tiles/tube
 aspect_ratio: 60%
 ```
 
 ```yaml
 type: iframe
-url: http://YOUR_DOCKER_HOST:5050/tiles/carbon
+url: http://YOUR_DOCKER_HOST:5054/tiles/carbon
 aspect_ratio: 55%
 ```
 
 ```yaml
 type: iframe
-url: http://YOUR_DOCKER_HOST:5050/tiles/trains
+url: http://YOUR_DOCKER_HOST:5054/tiles/trains
 aspect_ratio: 100%
 ```
 
 `aspect_ratio` sets height relative to card width: at 400px, 90% gives 360px. Adjust for font size, row count, disruption details and your dashboard layout; Home Assistant does not automatically resize the frame to its content. The tiles have content-sized layouts, two train columns on wide frames and one on narrow frames. Vertical scrolling inside a short frame is intentional; Tube details expand within its frame and remain keyboard accessible.
 
-If Home Assistant uses HTTPS, the tile URLs must also use HTTPS with a certificate trusted by each viewing device. Use a LAN reverse proxy such as Synology's, forwarding to port 5050. HTTP tiles inside HTTPS Home Assistant are blocked as mixed content. Ensure the proxy does not add `X-Frame-Options: DENY/SAMEORIGIN` or a CSP `frame-ancestors` rule that excludes your Home Assistant origin. The app itself permits framing; no sandbox disabling or public internet exposure is needed.
+If Home Assistant uses HTTPS, the tile URLs must also use HTTPS with a certificate trusted by each viewing device. Use a LAN reverse proxy such as Synology's, forwarding to host port 5054. HTTP tiles inside HTTPS Home Assistant are blocked as mixed content. Ensure the proxy does not add `X-Frame-Options: DENY/SAMEORIGIN` or a CSP `frame-ancestors` rule that excludes your Home Assistant origin. The app itself permits framing; no sandbox disabling or public internet exposure is needed.
 
 ## JSON and failure states
 
